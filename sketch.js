@@ -1,5 +1,5 @@
 // --- STATE & CONFIG ---
-// Состояние больше не нужно, все запускается сразу
+let state = 'waitingForMusic'; // 'waitingForMusic' -> 'playing'
 let song;
 
 // Графические переменные
@@ -11,18 +11,23 @@ let codeStreams = [];
 
 // --- PRELOAD: Загрузка ассетов перед стартом ---
 function preload() {
-  // Убедитесь, что файл 'song.mp3' лежит в той же папке, что и проект
-  let songPath = "Системная ошибка....wav"; 
-  song = loadSound(songPath);
+  let songPath = "song.mp3"; 
+  song = loadSound(songPath, 
+    () => console.log("Песня успешно загружена."),
+    (err) => console.error("ОШИБКА: Не удалось загрузить песню. Убедитесь, что файл 'song.mp3' находится в папке проекта.", err)
+  );
 }
 
 function setup() {
-  let size = min(windowWidth, windowHeight);
-  createCanvas(size, size);
+  // Вертикальный холст для TikTok (9:16)
+  let h = windowHeight * 0.9;
+  let w = h * (9 / 16);
+  createCanvas(w, h);
   
   // Graphics setup
-  pg = createGraphics(size, size);
+  pg = createGraphics(w, h);
   pg.colorMode(HSB, 360, 100, 100, 100);
+  // --- ВАЖНО: Устанавливаем шрифт для холста ОДИН РАЗ здесь ---
   pg.textFont('monospace');
   
   colorMode(HSB, 360, 100, 100, 100);
@@ -46,15 +51,30 @@ function setup() {
     codeStreams.push(new CodeStream(random(width)));
   }
 
-  // --- АВТОМАТИЧЕСКИЙ ЗАПУСК МУЗЫКИ ---
-  // Пытаемся запустить аудио. Может быть заблокировано браузером.
-  userStartAudio(); // "Разрешаем" аудиоконтекст
-  song.loop();      // Запускаем песню
+  // Функция, которая остановит анимацию, когда песня закончится
+  song.onended(() => {
+    console.log("Песня закончилась. Анимация остановлена.");
+    noLoop(); 
+  });
 }
 
 function draw() {
-  // Сразу отрисовываем основную сцену
+  // Анимация отрисовывается всегда
   drawScene();
+
+  // Если музыка еще не запущена, показываем подсказку
+  if (state === 'waitingForMusic') {
+    drawOverlayPrompt();
+  }
+}
+
+function mousePressed() {
+  // Клик запускает музыку, если она загружена и еще не играет
+  if (state === 'waitingForMusic' && song.isLoaded()) {
+    userStartAudio();
+    song.play(); 
+    state = 'playing'; // Меняем состояние, чтобы убрать подсказку
+  }
 }
 
 // --- SCENE DRAWING & VISUALS ---
@@ -83,14 +103,36 @@ function drawScene() {
     drawScanlines(this);
 }
 
+// Новая функция для подсказки поверх анимации
+function drawOverlayPrompt() {
+  fill(0, 50);
+  rect(0, 0, width, height);
+  
+  textAlign(CENTER, CENTER);
+  let promptText = song.isLoaded() ? "[ CLICK TO START MUSIC ]" : "Loading Audio...";
+  
+  let pulse = 150 + sin(frameCount * 0.1) * 50;
+  fill(neonBlue, pulse);
+  textSize(18); textFont('monospace');
+  text(promptText, width/2, height/2);
+}
+
+// --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
 function drawArtistName(g) {
-  g.push();
-  g.textFont('monospace');
-  g.textSize(16);
-  g.textAlign(LEFT, TOP);
+  g.push(); 
+  // g.textFont('monospace'); <-- ЭТА СТРОКА БЫЛА ОШИБКОЙ И ВСЕ ЛОМАЛА. ОНА УДАЛЕНА.
+  g.textSize(g.height * 0.025); 
+  g.textAlign(LEFT, TOP); 
   g.fill(neonPurple, 80);
-  g.text("Рузиль Авзалов", 20 + random(-0.5, 0.5), 20 + random(-0.5, 0.5));
+  g.text("Ruz", g.width * 0.05, g.height * 0.03 + random(-0.5, 0.5)); 
   g.pop();
+}
+
+function drawTitle(g) {
+  g.push(); g.textAlign(CENTER, CENTER); g.textSize(g.height / 18); g.drawingContext.shadowBlur = 15;
+  g.drawingContext.shadowColor = neonBlue; g.fill(neonBlue);
+  g.text('Системная ошибка', g.width / 2, g.height * 0.85); g.drawingContext.shadowBlur = 0;
+  g.fill(neonPurple, 50); g.text('Системная ошибка', g.width / 2 + random(-3,3), g.height * 0.85 + random(-1,1)); g.pop();
 }
 
 // --- All other drawing and class functions remain the same ---
@@ -99,9 +141,7 @@ function drawSilhouetteGlow(g) { g.push(); let pulse = 20 + sin(frameCount * 0.0
 function drawGlitch(g, num) { if (frameCount % 10 > 2) return; for (let i = 0; i < num; i++) { let x = random(g.width), y = random(g.height), w = random(50, g.width * 0.4), h = random(2, 20); if (x > g.width * 0.4 && x < g.width * 0.7 && y > g.height * 0.2 && y < g.height * 0.8) continue; let shiftX = random(-10, 10); let region = g.get(x, y, w, h); g.image(region, x + shiftX, y); } }
 function drawGrid(g) { g.stroke(neonBlue, 10); g.strokeWeight(0.5); for(let i=0; i<g.width; i+=40) { g.line(i, 0, i, g.height); g.line(0, i, g.width, i); } g.noStroke(); }
 function drawUIFragments(g) { g.push(); let x = g.width * 0.2 + sin(frameCount * 0.02) * 20, y = g.height * 0.2, size = 100 + cos(frameCount * 0.02) * 20; g.strokeWeight(1.5); g.stroke(neonPurple, random(30, 80)); g.noFill(); g.arc(x, y, size, size, frameCount * 0.01, frameCount * 0.01 + PI); g.rect(x - size/2, y + size/2, size, 10); g.pop(); }
-function drawStatusIcons(g) { g.push(); let battX = g.width * 0.85, battY = g.height * 0.1, battW = 30, battH = 15; g.fill(0,0,0,50); g.stroke(neonPurple); g.strokeWeight(1.5); g.rect(battX, battY, battW, battH, 2); g.rect(battX + battW, battY + battH/4, 3, battH/2); let charge = frameCount % 120 < 30 ? 0.2 : 0.25; g.fill(neonPurple); g.noStroke(); g.rect(battX + 3, battY + 3, battW * charge, battH - 6); g.pop(); g.push(); let connX = g.width * 0.1, connY = g.height * 0.9; g.stroke(neonBlue); g.strokeWeight(2); g.noFill(); for (let i = 0; i < 3; i++) { let d = 15 + i * 12; if (i === 0 && frameCount % 60 < 30) continue; g.arc(connX, connY, d, d, -PI * 0.75, -PI * 0.25); } g.pop(); }
-function drawTitle(g) { g.push(); g.textAlign(CENTER, CENTER); g.textSize(g.height / 18); g.drawingContext.shadowBlur = 15; g.drawingContext.shadowColor = neonBlue; g.fill(neonBlue); g.text('Системная ошибка', g.width / 2, g.height * 0.85); g.drawingContext.shadowBlur = 0; g.fill(neonPurple, 50); g.text('Системная ошибка', g.width / 2 + random(-3,3), g.height * 0.85 + random(-1,1)); g.pop(); }
-function drawScanlines(g) { g.stroke(0, 0, 0, 50); g.strokeWeight(1.5); for (let i = 0; i < g.height; i += 4) { g.line(0, i, g.width, i); } g.noStroke(); }
+function drawStatusIcons(g) { g.push(); let battX = g.width * 0.85, battY = g.height * 0.05, battW = 30, battH = 15; g.fill(0,0,0,50); g.stroke(neonPurple); g.strokeWeight(1.5); g.rect(battX, battY, battW, battH, 2); g.rect(battX + battW, battY + battH/4, 3, battH/2); let charge = frameCount % 120 < 30 ? 0.2 : 0.25; g.fill(neonPurple); g.noStroke(); g.rect(battX + 3, battY + 3, battW * charge, battH - 6); g.pop(); g.push(); let connX = g.width * 0.1, connY = g.height * 0.95; g.stroke(neonBlue); g.strokeWeight(2); g.noFill(); for (let i = 0; i < 3; i++) { let d = 15 + i * 12; if (i === 0 && frameCount % 60 < 30) continue; g.arc(connX, connY, d, d, -PI * 0.75, -PI * 0.25); } g.pop(); }
 class Particle { constructor() { this.pos = createVector(random(width), random(height)); this.vel = p5.Vector.random2D().mult(random(0.2, 0.8)); this.lifespan = 255; this.c = random(1) > 0.5 ? neonBlue : neonPurple; } isDead() { return this.lifespan < 0; } update() { this.pos.add(this.vel); this.lifespan -= 1.5; } display(g) { g.noStroke(); g.fill(hue(this.c), saturation(this.c), brightness(this.c), this.lifespan/3); g.ellipse(this.pos.x, this.pos.y, 3, 3); } }
-class CodeStream { constructor(x) { this.x = x; this.y = random(-500, 0); this.speed = random(2, 6); this.chars = []; this.charCount = floor(random(10, 30)); this.fontSize = 14; for(let i = 0; i < this.charCount; i++) { this.chars.push(char(floor(random(48, 58)))); } } update() { this.y += this.speed; if(this.y > height + this.charCount * this.fontSize) { this.y = random(-500, 0); } if(frameCount % 5 === 0) { let i = floor(random(this.chars.length)); this.chars[i] = char(floor(random(48, 58))); } } display(g) { g.textSize(this.fontSize); for(let i=0; i < this.chars.length; i++) { const c = i === this.chars.length - 1 ? color(180, 50, 100) : color(220, 90, 100, 30); g.fill(c); g.text(this.chars[i], this.x, this.y - i * this.fontSize); } } }
-function windowResized() { let size = min(windowWidth, windowHeight); resizeCanvas(size, size); pg = createGraphics(size, size); pg.colorMode(HSB, 360, 100, 100, 100); pg.textFont('monospace'); }
+class CodeStream { constructor(x) { this.x = x; this.y = random(-500, 0); this.speed = random(2, 6); this.chars = []; this.charCount = floor(random(10, 30)); this.fontSize = height * 0.015; for(let i = 0; i < this.charCount; i++) { this.chars.push(char(floor(random(48, 58)))); } } update() { this.y += this.speed; if(this.y > height + this.charCount * this.fontSize) { this.y = random(-500, 0); } if(frameCount % 5 === 0) { let i = floor(random(this.chars.length)); this.chars[i] = char(floor(random(48, 58))); } } display(g) { g.textSize(this.fontSize); for(let i=0; i < this.chars.length; i++) { const c = i === this.chars.length - 1 ? color(180, 50, 100) : color(220, 90, 100, 30); g.fill(c); g.text(this.chars[i], this.x, this.y - i * this.fontSize); } } }
+function windowResized() { let h = windowHeight * 0.9; let w = h * (9 / 16); resizeCanvas(w, h); pg.resize(w,h); }
