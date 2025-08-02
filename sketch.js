@@ -3,7 +3,7 @@ let state = 'waitingForMusic'; // 'waitingForMusic' -> 'playing'
 let song;
 
 // Графические переменные
-let pg; 
+let pg;
 let neonBlue, neonPurple, darkBg;
 let silhouettePoints = [];
 let particles = [];
@@ -11,8 +11,8 @@ let codeStreams = [];
 
 // --- PRELOAD: Загрузка ассетов перед стартом ---
 function preload() {
-  let songPath = "song.mp3"; 
-  song = loadSound(songPath, 
+  let songPath = "song.mp3";
+  song = loadSound(songPath,
     () => console.log("Песня успешно загружена."),
     (err) => console.error("ОШИБКА: Не удалось загрузить песню. Убедитесь, что файл 'song.mp3' находится в папке проекта.", err)
   );
@@ -23,13 +23,12 @@ function setup() {
   let h = windowHeight * 0.9;
   let w = h * (9 / 16);
   createCanvas(w, h);
-  
+
   // Graphics setup
   pg = createGraphics(w, h);
   pg.colorMode(HSB, 360, 100, 100, 100);
-  // --- ВАЖНО: Устанавливаем шрифт для холста ОДИН РАЗ здесь ---
   pg.textFont('monospace');
-  
+
   colorMode(HSB, 360, 100, 100, 100);
   noStroke();
 
@@ -54,7 +53,7 @@ function setup() {
   // Функция, которая остановит анимацию, когда песня закончится
   song.onended(() => {
     console.log("Песня закончилась. Анимация остановлена.");
-    noLoop(); 
+    noLoop();
   });
 }
 
@@ -72,70 +71,88 @@ function mousePressed() {
   // Клик запускает музыку, если она загружена и еще не играет
   if (state === 'waitingForMusic' && song.isLoaded()) {
     userStartAudio();
-    song.play(); 
+    song.play();
     state = 'playing'; // Меняем состояние, чтобы убрать подсказку
   }
 }
 
 // --- SCENE DRAWING & VISUALS ---
 function drawScene() {
-    pg.background(darkBg); pg.noStroke();
-    for (let stream of codeStreams) { stream.update(); stream.display(pg); }
-    drawGrid(pg);
-    if(random(1) < 0.5) particles.push(new Particle());
-    for(let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].display(pg); if(particles[i].isDead()) particles.splice(i, 1); }
-    drawUIFragments(pg); 
-    drawStatusIcons(pg); 
-    drawArtistName(pg);
-    drawSilhouetteGlow(pg); 
-    drawSilhouette(pg); 
-    drawGlitch(pg, 3); 
-    drawTitle(pg);
-    
-    background(0); 
-    blendMode(ADD); 
-    let offset = sin(frameCount * 0.05) * 2;
-    tint(255, 0, 0); image(pg, offset, 0); 
-    tint(0, 255, 0); image(pg, 0, offset); 
-    tint(0, 0, 255); image(pg, -offset, 0);
-    blendMode(BLEND); 
-    noTint(); 
-    drawScanlines(this);
+  pg.background(darkBg);
+  pg.noStroke();
+  for (let stream of codeStreams) { stream.update(); stream.display(pg); }
+  drawGrid(pg);
+  if (random(1) < 0.5) particles.push(new Particle());
+  for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].display(pg); if (particles[i].isDead()) particles.splice(i, 1); }
+  drawUIFragments(pg);
+  drawStatusIcons(pg);
+  drawArtistName(pg);
+  drawSilhouetteGlow(pg);
+  drawSilhouette(pg);
+  drawGlitch(pg, 3);
+  drawTitle(pg);
+
+  background(0);
+  blendMode(ADD);
+  let offset = sin(frameCount * 0.05) * 2;
+  tint(255, 0, 0); image(pg, offset, 0);
+  tint(0, 255, 0); image(pg, 0, offset);
+  tint(0, 0, 255); image(pg, -offset, 0);
+  blendMode(BLEND);
+  noTint();
+  
+  // Вызов функции, которая раньше отсутствовала
+  drawScanlines(this);
 }
 
 // Новая функция для подсказки поверх анимации
 function drawOverlayPrompt() {
   fill(0, 50);
   rect(0, 0, width, height);
-  
+
   textAlign(CENTER, CENTER);
   let promptText = song.isLoaded() ? "[ CLICK TO START MUSIC ]" : "Loading Audio...";
-  
+
   let pulse = 150 + sin(frameCount * 0.1) * 50;
   fill(neonBlue, pulse);
   textSize(18); textFont('monospace');
-  text(promptText, width/2, height/2);
+  text(promptText, width / 2, height / 2);
 }
 
-// --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
+// --- ВОЗВРАЩЕННАЯ ФУНКЦИЯ ---
+function drawScanlines(g) {
+  g.stroke(0, 0, 0, 50);
+  g.strokeWeight(1.5);
+  for (let i = 0; i < g.height; i += 4) {
+    g.line(0, i, g.width, i);
+  }
+  g.noStroke();
+}
+
 function drawArtistName(g) {
-  g.push(); 
-  // g.textFont('monospace'); <-- ЭТА СТРОКА БЫЛА ОШИБКОЙ И ВСЕ ЛОМАЛА. ОНА УДАЛЕНА.
-  g.textSize(g.height * 0.025); 
-  g.textAlign(LEFT, TOP); 
+  g.push();
+  g.textSize(g.height * 0.025);
+  g.textAlign(LEFT, TOP);
   g.fill(neonPurple, 80);
-  g.text("Ruz", g.width * 0.05, g.height * 0.03 + random(-0.5, 0.5)); 
+  g.text("Ruz", g.width * 0.05, g.height * 0.03 + random(-0.5, 0.5));
   g.pop();
 }
 
 function drawTitle(g) {
-  g.push(); g.textAlign(CENTER, CENTER); g.textSize(g.height / 18); g.drawingContext.shadowBlur = 15;
-  g.drawingContext.shadowColor = neonBlue; g.fill(neonBlue);
-  g.text('Системная ошибка', g.width / 2, g.height * 0.85); g.drawingContext.shadowBlur = 0;
-  g.fill(neonPurple, 50); g.text('Системная ошибка', g.width / 2 + random(-3,3), g.height * 0.85 + random(-1,1)); g.pop();
+  g.push();
+  g.textAlign(CENTER, CENTER);
+  g.textSize(g.height / 18);
+  g.drawingContext.shadowBlur = 15;
+  g.drawingContext.shadowColor = neonBlue;
+  g.fill(neonBlue);
+  g.text('Системная ошибка', g.width / 2, g.height * 0.85);
+  g.drawingContext.shadowBlur = 0;
+  g.fill(neonPurple, 50);
+  g.text('Системная ошибка', g.width / 2 + random(-3, 3), g.height * 0.85 + random(-1, 1));
+  g.pop();
 }
 
-// --- All other drawing and class functions remain the same ---
+// --- All other drawing and class functions ---
 function drawSilhouette(g) { g.push(); g.noFill(); g.stroke(neonBlue); g.strokeWeight(2); g.beginShape(); g.curveVertex(g.width*silhouettePoints[0].x, g.height*silhouettePoints[0].y); for (let p of silhouettePoints) { g.curveVertex(g.width*p.x, g.height*p.y); } g.curveVertex(g.width*silhouettePoints[silhouettePoints.length-1].x, g.height*silhouettePoints[silhouettePoints.length-1].y); g.endShape(); g.pop(); }
 function drawSilhouetteGlow(g) { g.push(); let pulse = 20 + sin(frameCount * 0.03) * 15; g.drawingContext.shadowBlur = pulse; g.drawingContext.shadowColor = color(200, 100, 100, 50); for(let i=0; i<4; i++){ drawSilhouette(g); } g.pop(); }
 function drawGlitch(g, num) { if (frameCount % 10 > 2) return; for (let i = 0; i < num; i++) { let x = random(g.width), y = random(g.height), w = random(50, g.width * 0.4), h = random(2, 20); if (x > g.width * 0.4 && x < g.width * 0.7 && y > g.height * 0.2 && y < g.height * 0.8) continue; let shiftX = random(-10, 10); let region = g.get(x, y, w, h); g.image(region, x + shiftX, y); } }
